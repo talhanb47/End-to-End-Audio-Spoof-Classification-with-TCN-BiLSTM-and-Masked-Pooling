@@ -2,6 +2,11 @@
 
 A lightweight FastAPI web application for real/fake audio spoof classification using MFCC features, a TCN-BiLSTM temporal encoder, and masked mean pooling.
 
+## Application Screenshot
+
+![Audio Spoof Classification Web App](assets/app_screenshot.png)
+
+
 ## Project Structure
 
 ```text
