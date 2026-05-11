@@ -19,9 +19,9 @@ audio-spoof-classification/
 │   └── best_AN_asvspoof2019_LA_fullclip_byEER.pth
 ├── samples/
 │   ├── real/
-│   │   └── put real/bonafide audio samples here
+│   │   └── ...
 │   └── fake/
-│       └── put fake/spoof audio samples here
+│       └── ...
 └── templates/
     └── index.html
 ```
