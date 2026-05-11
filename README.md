@@ -97,23 +97,6 @@ samples/fake/fake_002.wav
 
 Supported upload formats in the web page are WAV, FLAC, MP3, and common audio formats.
 
-## Create Git Repository
-
-```bash
-git init
-git add .
-git commit -m "Initial commit: audio spoof classification web app"
-```
-
-## Push to GitHub
-
-Create an empty GitHub repository first, then run:
-
-```bash
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-git push -u origin main
-```
 
 ## Notes
 
