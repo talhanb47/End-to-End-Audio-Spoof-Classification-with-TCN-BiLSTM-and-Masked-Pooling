@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>End-to-End Audio Spoof Classification with TCN–BiLSTM and Masked Pooling</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+    :root{
+      --bg:#0b1220;
+      --muted:#9fb0c8;
+      --text:#e7eefc;
+      --border:rgba(255,255,255,.08);
+      --shadow:0 18px 50px rgba(0,0,0,.35);
+      --good:#22c55e;
+      --bad:#ef4444;
+      --warn:#f59e0b;
+      --cyan:#06b6d4;
+      --purple:#7c3aed;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(124,58,237,.22), transparent 34%),
+        radial-gradient(circle at top right, rgba(6,182,212,.18), transparent 34%),
+        linear-gradient(180deg,var(--bg),#070c16);
+      color:var(--text);
+      min-height:100vh;
+      font-size:16px;
+      line-height:1.45;
+    }
+
+    .wrap{
+      max-width:1320px;
+      margin:0 auto;
+      padding:26px;
+    }
+
+    .topbar{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      margin-bottom:24px;
+      text-align:center;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      width:100%;
+    }
+
+    .logo{
+      width:50px;
+      height:50px;
+      border-radius:16px;
+      background:linear-gradient(135deg,var(--purple),var(--cyan));
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .logo::after{
+      content:"";
+      position:absolute;
+      inset:11px;
+      border-radius:12px;
+      border:2px solid rgba(255,255,255,.5);
+    }
+
+    .title h1{
+      margin:0;
+      font-size:30px;
+      font-weight:1000;
+      line-height:1.15;
+      letter-spacing:.2px;
+    }
+
+    .title span{
+      display:block;
+      color:var(--muted);
+      font-size:15px;
+      margin-top:8px;
+      font-weight:700;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 11px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:13.5px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:var(--warn);
+    }
+
+    .dot.ok{background:var(--good)}
+    .dot.bad{background:var(--bad)}
+
+
+    .grid{
+      display:grid;
+      grid-template-columns:440px 1fr;
+      gap:18px;
+      align-items:start;
+    }
+
+    .card{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--border);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      backdrop-filter:blur(8px);
+    }
+
+    .hd{
+      padding:14px 16px;
+      background:rgba(255,255,255,.035);
+      border-bottom:1px solid var(--border);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+
+    .hd h2{
+      margin:0;
+      font-size:17px;
+    }
+
+    .bd{padding:16px 18px}
+
+    .filebox{
+      border:1px dashed rgba(255,255,255,.14);
+      border-radius:17px;
+      padding:14px;
+      background:rgba(255,255,255,.02);
+    }
+
+    input[type="file"]{
+      width:100%;
+      color:var(--muted);
+    }
+
+    input[type="file"]::file-selector-button{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      padding:9px 11px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:800;
+      margin-right:10px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      padding:11px 14px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:950;
+      font-size:15px;
+    }
+
+    button:hover{background:rgba(255,255,255,.09)}
+
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+
+    .primary{
+      border:none;
+      background:linear-gradient(135deg,var(--purple),var(--cyan));
+    }
+
+    .progress{
+      height:10px;
+      border-radius:999px;
+      overflow:hidden;
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--border);
+      margin-top:12px;
+    }
+
+    .bar{
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,var(--purple),var(--cyan));
+      transition:width .25s ease;
+    }
+
+    .statePanel,
+    .metricsPanel,
+    .reportPanel{
+      margin-top:14px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.025);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .metricsFullWidth{
+      width:100%;
+      margin-top:18px;
+    }
+
+    .metricsFullWidth .metricsHead strong{
+      font-size:20px;
+    }
+
+    .metricsFullWidth .metricBox{
+      min-height:86px;
+      padding:14px;
+    }
+
+    .statePanel{
+      display:none;
+    }
+
+    .statePanel.is-visible{
+      display:block;
+    }
+
+    .stateHead,
+    .metricsHead,
+    .reportHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .stateHead strong,
+    .metricsHead strong,
+    .reportHead strong{
+      font-size:16px;
+    }
+
+    .stateHead span,
+    .metricsHead span,
+    .reportHead span{
+      color:var(--muted);
+      font-size:13.5px;
+      font-weight:900;
+      text-align:right;
+    }
+
+    .stateList{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .stateItem{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:9px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.02);
+      color:var(--muted);
+      font-size:14px;
+      font-weight:750;
+      transition:.2s ease;
+    }
+
+    .stateIcon{
+      width:19px;
+      height:19px;
+      min-width:19px;
+      border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:11px;
+      font-weight:1000;
+      background:rgba(255,255,255,.07);
+      color:var(--muted);
+    }
+
+    .stateItem.active{
+      color:var(--text);
+      border-color:rgba(6,182,212,.45);
+      background:rgba(6,182,212,.08);
+      transform:translateX(2px);
+    }
+
+    .stateItem.active .stateIcon{
+      background:rgba(6,182,212,.22);
+      color:#67e8f9;
+    }
+
+    .stateItem.done{
+      color:rgba(231,238,252,.92);
+      border-color:rgba(34,197,94,.35);
+      background:rgba(34,197,94,.07);
+    }
+
+    .stateItem.done .stateIcon{
+      background:rgba(34,197,94,.18);
+      color:#86efac;
+    }
+
+    .stateItem.error{
+      color:#ffd7d7;
+      border-color:rgba(239,68,68,.38);
+      background:rgba(239,68,68,.08);
+    }
+
+    .stateItem.error .stateIcon{
+      background:rgba(239,68,68,.18);
+      color:#fecaca;
+    }
+
+    .resultSidePanel{
+      border:1px solid rgba(255,255,255,.09);
+      background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      border-radius:18px;
+      padding:18px;
+      min-height:220px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      gap:10px;
+    }
+
+    .pred{
+      font-size:58px;
+      font-weight:1000;
+      letter-spacing:.8px;
+      line-height:1;
+    }
+
+    .resultHint{
+      color:var(--muted);
+      font-size:13.5px;
+      max-width:190px;
+    }
+
+    .resultNotice{
+      margin-top:12px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.025);
+      color:var(--muted);
+      font-weight:800;
+      font-size:14px;
+    }
+
+    .chip{
+      padding:10px 12px;
+      border-radius:999px;
+      font-weight:1000;
+      font-size:15px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05);
+      color:var(--muted);
+    }
+
+    .chip.real{
+      color:#86efac;
+      background:rgba(34,197,94,.15);
+      border-color:rgba(34,197,94,.35);
+    }
+
+    .chip.fake{
+      color:#fecaca;
+      background:rgba(239,68,68,.15);
+      border-color:rgba(239,68,68,.35);
+    }
+
+    .kvgrid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:12px;
+    }
+
+    .metricsGrid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+      margin-top:14px;
+    }
+
+    .kv,
+    .metricBox{
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.02);
+      border-radius:14px;
+      padding:11px;
+    }
+
+    .metricBox{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018));
+    }
+
+    .metricBox.featured{
+      border-color:rgba(6,182,212,.28);
+      background:linear-gradient(180deg, rgba(6,182,212,.10), rgba(124,58,237,.05));
+    }
+
+    .k{
+      font-size:13px;
+      color:var(--muted);
+      font-weight:850;
+    }
+
+    .v,
+    .metricVal{
+      margin-top:6px;
+      font-size:15px;
+      font-weight:900;
+      word-break:break-word;
+    }
+
+    .metricVal{
+      font-size:18px;
+      font-weight:1000;
+    }
+
+    .reportActions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+
+    .reportNote{
+      color:var(--muted);
+      font-size:13.5px;
+      font-weight:750;
+      margin-top:10px;
+      line-height:1.45;
+    }
+
+    .err{
+      margin-top:12px;
+      border:1px solid rgba(239,68,68,.35);
+      background:rgba(239,68,68,.08);
+      color:#ffd7d7;
+      border-radius:14px;
+      padding:10px;
+      display:none;
+      white-space:pre-wrap;
+      font-size:13px;
+    }
+
+    .plotsCol{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+
+    .visualCard .bd{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .waveResultRow{
+      display:grid;
+      grid-template-columns:230px 1fr;
+      gap:14px;
+      align-items:stretch;
+    }
+
+    .plotShell{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.018);
+      border-radius:18px;
+      padding:10px;
+      overflow:hidden;
+    }
+
+    .plotHeader{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      margin:0 2px 8px;
+    }
+
+    .plotHeader strong{
+      font-size:16px;
+    }
+
+    .plotHeader span{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:850;
+      text-align:right;
+    }
+
+    #wave,
+    #mfcc{
+      width:100%;
+      height:230px;
+    }
+
+    @media (max-width:1050px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+
+      #wave,
+      #mfcc{
+        height:220px;
+      }
+
+      .topbar{
+        align-items:center;
+        flex-direction:column;
+      }
+
+      .waveResultRow{
+        grid-template-columns:1fr;
+      }
+
+      .metricsGrid{
+        grid-template-columns:1fr 1fr;
+      }
+    }
+
+    @media (max-width:620px){
+      .wrap{
+        padding:16px;
+      }
+
+      .kvgrid,
+      .metricsGrid{
+        grid-template-columns:1fr;
+      }
+
+      .title h1{
+        font-size:22px;
+      }
+
+      .pred{
+        font-size:46px;
+      }
+    }
+  
+
+    /* MFCC is hidden until inference finishes. Metrics are placed under MFCC. */
+    #mfccShell{
+      display:none;
+    }
+
+    .visualCard .metricsFullWidth{
+      margin-top:14px;
+      width:100%;
+    }
+
+    .visualCard .metricsGrid{
+      grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    @media (max-width:1050px){
+      .visualCard .metricsGrid{
+        grid-template-columns:1fr 1fr;
+      }
+    }
+
+    @media (max-width:620px){
+      .visualCard .metricsGrid{
+        grid-template-columns:1fr;
+      }
+    }
+
+  </style>
+</head>
+<body>
+<div class="wrap">
+<div class="topbar">
+<div class="brand">
+<div class="title">
+<h1>
+          End-to-End Audio Spoof Classification with<br/>
+          TCN–BiLSTM and Masked Pooling
+        </h1>
+<span>A Lightweight Web Application for Real-Time Model Evaluation</span>
+</div>
+</div>
+<span class="pill">
+<span class="dot" id="serverDot"></span>
+<span id="serverText">Checking server…</span>
+</span>
+</div>
+<div class="grid">
+<div class="card">
+<div class="hd">
+<h2>Upload &amp; Inference</h2>
+<span class="pill">
+<span class="dot" id="runDot"></span>
+<span id="runText">Idle</span>
+</span>
+</div>
+<div class="bd">
+<div class="filebox">
+<div class="k" style="margin-bottom:8px">
+            Supported: WAV / FLAC / MP3
+          </div>
+<input accept=".wav,.flac,.mp3,audio/*" id="file" type="file"/>
+<div class="actions">
+<button class="primary" id="run">Run Inference</button>
+<button id="ping">Ping</button>
+<button id="clear">Clear</button>
+</div>
+<div class="progress">
+<div class="bar" id="bar"></div>
+</div>
+<div class="statePanel" id="statePanel">
+<div class="stateHead">
+<strong>Real-Time Model Evaluation States</strong>
+<span id="currentStateText">Waiting for audio</span>
+</div>
+<div class="stateList">
+<div class="stateItem" id="stateServer">
+<span class="stateIcon">1</span>
+<span>Server connection check</span>
+</div>
+<div class="stateItem" id="stateAudio">
+<span class="stateIcon">2</span>
+<span>Audio file selected</span>
+</div>
+<div class="stateItem" id="stateUpload">
+<span class="stateIcon">3</span>
+<span>Uploading audio sample</span>
+</div>
+<div class="stateItem" id="statePreprocess">
+<span class="stateIcon">4</span>
+<span>Audio decoding and MFCC feature extraction</span>
+</div>
+<div class="stateItem" id="stateEvaluate">
+<span class="stateIcon">5</span>
+<span>TCN–BiLSTM evaluation with masked pooling</span>
+</div>
+<div class="stateItem" id="stateRender">
+<span class="stateIcon">6</span>
+<span>Rendering prediction, waveform, MFCC, and report</span>
+</div>
+<div class="stateItem" id="stateDone">
+<span class="stateIcon">7</span>
+<span>Evaluation completed</span>
+</div>
+</div>
+</div>
+<div class="kvgrid">
+<div class="kv">
+<div class="k">File</div>
+<div class="v" id="kvFile">—</div>
+</div>
+<div class="kv">
+<div class="k">Duration</div>
+<div class="v" id="kvDur">—</div>
+</div>
+<div class="kv">
+<div class="k">P(bonafide)</div>
+<div class="v" id="kvPb">—</div>
+</div>
+<div class="kv">
+<div class="k">P(spoof)</div>
+<div class="v" id="kvPs">—</div>
+</div>
+<!-- <div class="kv">
+              <div class="k">Threshold</div>
+              <div class="v" id="kvThr">—</div>
+            </div> -->
+<div class="kv">
+<div class="k">MFCC frames</div>
+<div class="v" id="kvFrames">—</div>
+</div>
+<!-- <div class="kv">
+              <div class="k">Embedding</div>
+              <div class="v" id="kvEmb">—</div>
+            </div> -->
+<div class="kv">
+<div class="k">Sample Rate</div>
+<div class="v" id="kvSr">—</div>
+</div>
+</div>
+<div class="reportPanel">
+<div class="reportHead">
+<strong>Evaluation Report</strong>
+<span id="reportStatus">No report yet</span>
+</div>
+<div class="reportActions">
+<button class="primary" disabled="" id="downloadReport">Generate Report</button>
+<button disabled="" id="copyReport">Copy Report</button>
+</div>
+</div>
+<div class="err" id="errBox"></div>
+</div>
+</div>
+</div>
+<div class="plotsCol">
+<div class="card visualCard">
+<div class="hd">
+<h2>Waveform &amp; MFCC Analysis</h2>
+<span class="k"></span>
+</div>
+<div class="bd">
+<div class="waveResultRow">
+<div class="resultSidePanel">
+<div class="k"></div>
+<div class="pred" id="predText">—</div>
+<div class="chip" id="predChip">WAITING</div>
+<div class="resultHint"></div>
+</div>
+<div class="plotShell">
+<div class="plotHeader">
+<strong>Waveform</strong>
+<span></span>
+</div>
+<div id="wave"></div>
+</div>
+</div>
+<div class="plotShell" id="mfccShell" style="display:none;">
+<div class="plotHeader">
+<strong>MFCC Representation</strong>
+<span>13 × T heatmap</span>
+</div>
+<div id="mfcc"></div>
+</div><div class="metricsPanel metricsFullWidth">
+<div class="metricsHead">
+<strong>Real-Time Evaluation Metrics</strong>
+<span id="metricsStatus">Waiting</span>
+</div>
+<div class="metricsGrid">
+
+
+
+
+<div class="metricBox">
+<div class="k">Audio Decode</div>
+<div class="metricVal" id="mDecode">—</div>
+</div>
+<div class="metricBox">
+<div class="k">MFCC Extraction</div>
+<div class="metricVal" id="mMfcc">—</div>
+</div>
+<div class="metricBox">
+<div class="k">Tensor Preparation</div>
+<div class="metricVal" id="mTensor">—</div>
+</div>
+<div class="metricBox featured">
+<div class="k">Model Inference</div>
+<div class="metricVal" id="mModel">—</div>
+</div>
+
+<div class="metricBox featured">
+<div class="k">Real-Time Factor</div>
+<div class="metricVal" id="mRtf">—</div>
+</div>
+<div class="metricBox featured">
+<div class="k">Performance Label</div>
+<div class="metricVal" id="mPerf">—</div>
+</div>
+<div class="metricBox featured">
+<div class="k">Confidence</div>
+<div class="metricVal" id="mConfidence">—</div>
+</div>
+
+<div class="metricBox">
+<div class="k">Frames / Second</div>
+<div class="metricVal" id="mFps">—</div>
+</div>
+<div class="metricBox">
+<div class="k">File Size</div>
+<div class="metricVal" id="mFileSize">—</div>
+</div>
+<div class="metricBox">
+<div class="k">Device</div>
+<div class="metricVal" id="mDevice">—</div>
+</div>
+
+</div>
+<div class="hiddenMetricValues" style="display:none"><span id="mClientElapsed">—</span><span id="mServerTotal">—</span><span id="mUploadRead">—</span><span id="mTempWrite">—</span><span id="mPost">—</span><span id="mMargin">—</span><span id="mGpu">—</span></div></div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<script>
+  const el = (id) => document.getElementById(id);
+
+  const serverDot = el("serverDot");
+  const serverText = el("serverText");
+
+  const runDot = el("runDot");
+  const runText = el("runText");
+
+  const bar = el("bar");
+  const errBox = el("errBox");
+
+  const predText = el("predText");
+  const predChip = el("predChip");
+
+  const kvFile = el("kvFile");
+  const kvDur = el("kvDur");
+  const kvPb = el("kvPb");
+  const kvPs = el("kvPs");
+  const kvThr = el("kvThr");
+  const kvFrames = el("kvFrames");
+  const kvEmb = el("kvEmb");
+  const kvSr = el("kvSr");
+
+  const mClientElapsed = el("mClientElapsed");
+  const mServerTotal = el("mServerTotal");
+  const mUploadRead = el("mUploadRead");
+  const mTempWrite = el("mTempWrite");
+  const mDecode = el("mDecode");
+  const mMfcc = el("mMfcc");
+  const mTensor = el("mTensor");
+  const mModel = el("mModel");
+  const mPost = el("mPost");
+  const mRtf = el("mRtf");
+  const mPerf = el("mPerf");
+  const mConfidence = el("mConfidence");
+  const mMargin = el("mMargin");
+  const mFps = el("mFps");
+  const mFileSize = el("mFileSize");
+  const mDevice = el("mDevice");
+  const mGpu = el("mGpu");
+  const metricsStatus = el("metricsStatus");
+  const mfccShell = el("mfccShell");
+  const reportStatus = el("reportStatus");
+  const statePanel = el("statePanel");
+  const downloadReportBtn = el("downloadReport");
+  const copyReportBtn = el("copyReport");
+
+  const stateIds = [
+    "stateServer",
+    "stateAudio",
+    "stateUpload",
+    "statePreprocess",
+    "stateEvaluate",
+    "stateRender",
+    "stateDone"
+  ];
+
+  let clientTimer = null;
+  let clientStart = 0;
+  let lastReportText = "";
+
+  function sleep(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function fmtMs(v){
+    if (v === null || v === undefined || Number.isNaN(v)) return "—";
+    return `${Number(v).toFixed(2)} ms`;
+  }
+
+  function fmtNum(v, digits=3){
+    if (v === null || v === undefined || Number.isNaN(v)) return "—";
+    return Number(v).toFixed(digits);
+  }
+
+  function fmtBytes(bytes){
+    if (bytes === null || bytes === undefined) return "—";
+
+    const units = ["B", "KB", "MB", "GB"];
+    let size = bytes;
+    let unit = 0;
+
+    while (size >= 1024 && unit < units.length - 1) {
+      size /= 1024;
+      unit++;
+    }
+
+    return `${size.toFixed(2)} ${units[unit]}`;
+  }
+
+  function setRunState(state, msg){
+    runText.textContent = msg || "Idle";
+    runDot.className = "dot" + (
+      state === "ok" ? " ok" :
+      state === "bad" ? " bad" :
+      ""
+    );
+  }
+
+  function setServerState(ok, msg){
+    serverText.textContent = msg;
+    serverDot.className = "dot" + (ok ? " ok" : " bad");
+  }
+
+  function setProgress(p){
+    bar.style.width = `${Math.max(0, Math.min(100, p))}%`;
+  }
+
+  function showError(text){
+    errBox.style.display = "block";
+    errBox.textContent = text;
+  }
+
+  function clearError(){
+    errBox.style.display = "none";
+    errBox.textContent = "";
+  }
+
+  function showStatePanel(show=true){
+    if (!statePanel) return;
+    statePanel.classList.toggle("is-visible", show);
+  }
+
+  function hideStatePanelSoon(delay=900){
+    setTimeout(() => showStatePanel(false), delay);
+  }
+
+  function resetStates(){
+    stateIds.forEach(id => {
+      const item = el(id);
+      if (item) item.className = "stateItem";
+    });
+
+    el("currentStateText").textContent = "Waiting for audio";
+  }
+
+  function setState(activeId, label){
+    stateIds.forEach(id => {
+      const item = el(id);
+      if (!item) return;
+
+      if (id === activeId && !item.className.includes("done")) {
+        item.className = "stateItem active";
+      }
+    });
+
+    el("currentStateText").textContent = label;
+  }
+
+  function markStateDone(id){
+    const item = el(id);
+
+    if (item) {
+      item.className = "stateItem done";
+      const icon = item.querySelector(".stateIcon");
+      if (icon) icon.textContent = "✓";
+    }
+  }
+
+  function markStateError(id){
+    const item = el(id);
+
+    if (item) {
+      item.className = "stateItem error";
+      const icon = item.querySelector(".stateIcon");
+      if (icon) icon.textContent = "!";
+    }
+  }
+
+  function restoreStateNumbers(){
+    stateIds.forEach((id, index) => {
+      const item = el(id);
+      if (!item) return;
+
+      const icon = item.querySelector(".stateIcon");
+      if (icon) icon.textContent = String(index + 1);
+    });
+  }
+
+  function resetMetrics(){
+    mClientElapsed.textContent = "—";
+    mServerTotal.textContent = "—";
+    mUploadRead.textContent = "—";
+    mTempWrite.textContent = "—";
+    mDecode.textContent = "—";
+    mMfcc.textContent = "—";
+    mTensor.textContent = "—";
+    mModel.textContent = "—";
+    mPost.textContent = "—";
+    mRtf.textContent = "—";
+    mPerf.textContent = "—";
+    mConfidence.textContent = "—";
+    mMargin.textContent = "—";
+    mFps.textContent = "—";
+    mFileSize.textContent = "—";
+    mDevice.textContent = "—";
+    mGpu.textContent = "—";
+    metricsStatus.textContent = "Waiting";
+  }
+
+  function startClientTimer(){
+    clientStart = performance.now();
+    metricsStatus.textContent = "Running";
+
+    if (clientTimer) {
+      clearInterval(clientTimer);
+    }
+
+    clientTimer = setInterval(() => {
+      const elapsed = performance.now() - clientStart;
+      mClientElapsed.textContent = fmtMs(elapsed);
+    }, 100);
+  }
+
+  function stopClientTimer(){
+    if (!clientStart) return null;
+
+    if (clientTimer) {
+      clearInterval(clientTimer);
+      clientTimer = null;
+    }
+
+    const elapsed = performance.now() - clientStart;
+    mClientElapsed.textContent = fmtMs(elapsed);
+    return elapsed;
+  }
+
+  function clearAll(){
+    clearError();
+    restoreStateNumbers();
+    resetStates();
+    resetMetrics();
+    showStatePanel(false);
+    if (mfccShell) mfccShell.style.display = "none";
+    reportStatus.textContent = "No report yet";
+    lastReportText = "";
+    downloadReportBtn.disabled = true;
+    copyReportBtn.disabled = true;
+
+    setProgress(0);
+    setRunState("idle", "Idle");
+
+    predText.textContent = "—";
+    predChip.className = "chip";
+    predChip.textContent = "WAITING";
+
+    kvFile.textContent = "—";
+    kvDur.textContent = "—";
+    kvPb.textContent = "—";
+    kvPs.textContent = "—";
+    kvThr.textContent = "—";
+    kvFrames.textContent = "—";
+    kvEmb.textContent = "—";
+    kvSr.textContent = "—";
+
+    reportStatus.textContent = "No report yet";
+    lastReportText = "";
+    downloadReportBtn.disabled = true;
+    copyReportBtn.disabled = true;
+
+    try {
+      Plotly.purge("wave");
+      Plotly.purge("mfcc");
+    } catch(e) {}
+  }
+
+  async function pingServer(){
+    setState("stateServer", "Checking server connection");
+
+    try {
+      const BASE = window.location.origin;
+      const r = await fetch(`${BASE}/api/ping`);
+
+      if (!r.ok) {
+        throw new Error(`HTTP ${r.status}`);
+      }
+
+      const j = await r.json();
+
+      setServerState(true, `Server OK • ${j.device}`);
+      markStateDone("stateServer");
+
+      return true;
+
+    } catch(e) {
+      setServerState(false, "Server unreachable");
+      markStateError("stateServer");
+      el("currentStateText").textContent = "Server unreachable";
+
+      return false;
+    }
+  }
+
+  function updatePredictionUI(data){
+    kvFile.textContent = data.filename || "—";
+    kvDur.textContent = (data.duration_s ?? 0).toFixed(2) + " s";
+    kvPb.textContent = (data.p_bonafide ?? 0).toFixed(6);
+    kvPs.textContent = (data.p_spoof ?? 0).toFixed(6);
+    // kvThr.textContent = (data.threshold ?? 0).toFixed(3);
+    kvFrames.textContent = String(data.mfcc_frames ?? "—");
+    // kvEmb.textContent = "[" + (data.emb_shape || []).join(", ") + "]";
+    kvSr.textContent = String(data.sr ?? "—") + " Hz";
+
+    predText.textContent = data.is_spoof ? "FAKE" : "REAL";
+
+    if (data.is_spoof) {
+      predChip.className = "chip fake";
+      predChip.textContent = "SPOOF";
+    } else {
+      predChip.className = "chip real";
+      predChip.textContent = "BONAFIDE";
+    }
+  }
+
+  function updateMetrics(data){
+    const metrics = data.metrics || {};
+    const timings = metrics.timings || {};
+
+    mServerTotal.textContent = fmtMs(metrics.server_total_ms);
+    mUploadRead.textContent = fmtMs(timings.upload_read_ms);
+    mTempWrite.textContent = fmtMs(timings.temp_write_ms);
+    mDecode.textContent = fmtMs(timings.audio_decode_ms);
+    mMfcc.textContent = fmtMs(timings.mfcc_extraction_ms);
+    mTensor.textContent = fmtMs(timings.tensor_preparation_ms);
+    mModel.textContent = fmtMs(metrics.model_forward_ms);
+    mPost.textContent = fmtMs(timings.postprocess_payload_ms);
+
+    mRtf.textContent =
+      metrics.real_time_factor === null || metrics.real_time_factor === undefined
+        ? "—"
+        : `${fmtNum(metrics.real_time_factor, 4)} × audio length`;
+
+    mPerf.textContent = metrics.performance_label || "—";
+    mConfidence.textContent = fmtNum(metrics.confidence, 6);
+    mMargin.textContent = fmtNum(metrics.probability_margin, 6);
+    mFps.textContent = fmtNum(metrics.frames_per_second, 2);
+    mFileSize.textContent = fmtBytes(metrics.file_size_bytes);
+    mDevice.textContent = metrics.device || "—";
+
+    if (metrics.gpu_memory) {
+      mGpu.textContent = `${metrics.gpu_memory.max_allocated_mb} MB peak`;
+    } else {
+      mGpu.textContent = "N/A";
+    }
+
+    metricsStatus.textContent = "Completed";
+  }
+
+  function generateReportText(data, clientElapsedMs){
+    const metrics = data.metrics || {};
+    const report = data.report || {};
+    const timings = metrics.timings || {};
+
+    return [
+      "End-to-End Audio Spoof Classification Evaluation Report",
+      "",
+      `Architecture: ${report.architecture || "TCN-BiLSTM with Masked Mean Pooling"}`,
+      `Feature Front-End: ${report.feature_frontend || "MFCC"}`,
+      `Device: ${metrics.device || "—"}`,
+      "",
+      `Input File: ${data.filename || "—"}`,
+      `Audio Duration: ${(data.duration_s ?? 0).toFixed(3)} s`,
+      `Sample Rate: ${data.sr || "—"} Hz`,
+      `File Size: ${fmtBytes(data.file_size_bytes)}`,
+      `MFCC Frames: ${data.mfcc_frames || "—"}`,
+      "",
+      `Prediction: ${data.pred || "—"}`,
+      `P(bonafide): ${(data.p_bonafide ?? 0).toFixed(6)}`,
+      `P(spoof): ${(data.p_spoof ?? 0).toFixed(6)}`,
+      `Confidence: ${fmtNum(metrics.confidence, 6)}`,
+      "",
+      "Timing Metrics:",
+      `Audio Decode Time: ${fmtMs(timings.audio_decode_ms)}`,
+      `MFCC Extraction Time: ${fmtMs(timings.mfcc_extraction_ms)}`,
+      `Tensor Preparation Time: ${fmtMs(timings.tensor_preparation_ms)}`,
+      `Model Inference Time: ${fmtMs(metrics.model_forward_ms)}`,
+      "",
+      `Real-Time Factor: ${
+        metrics.real_time_factor === null || metrics.real_time_factor === undefined
+          ? "—"
+          : fmtNum(metrics.real_time_factor, 4)
+      }`,
+      `Performance Label: ${metrics.performance_label || "—"}`,
+      `Frames / Second: ${fmtNum(metrics.frames_per_second, 2)}`,
+      "",
+      "Summary:",
+      report.summary || "No summary available."
+    ].join("\n");
+  }
+
+  function renderPlots(data){
+    const waveColor = data.is_spoof ? "red" : "green";
+
+    Plotly.newPlot("wave", [{
+      x: data.wave_t,
+      y: data.wave_y,
+      type: "scatter",
+      mode: "lines",
+      line: {
+        color: waveColor,
+        width: 2
+      }
+    }], {
+      margin: { t: 10, l: 50, r: 10, b: 45 },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      xaxis: {
+        title: "Time (s)",
+        gridcolor: "rgba(255,255,255,.08)",
+        color: "rgba(231,238,252,.9)"
+      },
+      yaxis: {
+        title: "Amplitude",
+        gridcolor: "rgba(255,255,255,.08)",
+        color: "rgba(231,238,252,.9)"
+      },
+      font: {
+        color: "rgba(231,238,252,.9)"
+      }
+    }, {
+      displayModeBar: false,
+      responsive: true
+    });
+
+    if (mfccShell) mfccShell.style.display = "block";
+
+    Plotly.newPlot("mfcc", [{
+      z: data.mfcc,
+      type: "heatmap"
+    }], {
+      margin: { t: 10, l: 60, r: 10, b: 45 },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      xaxis: {
+        title: "Frames",
+        gridcolor: "rgba(255,255,255,.08)",
+        color: "rgba(231,238,252,.9)"
+      },
+      yaxis: {
+        title: "MFCC bins",
+        gridcolor: "rgba(255,255,255,.08)",
+        color: "rgba(231,238,252,.9)"
+      },
+      font: {
+        color: "rgba(231,238,252,.9)"
+      }
+    }, {
+      displayModeBar: false,
+      responsive: true
+    });
+  }
+
+  el("ping").addEventListener("click", async () => {
+    showStatePanel(true);
+    await pingServer();
+    hideStatePanelSoon(900);
+  });
+
+  el("clear").addEventListener("click", clearAll);
+
+  function safeReportFilename(){
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    return `evaluation_report_${stamp}.txt`;
+  }
+
+  downloadReportBtn.addEventListener("click", () => {
+    if (!lastReportText) {
+      showError("No report available yet. Run inference first.");
+      return;
+    }
+
+    const blob = new Blob([lastReportText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = safeReportFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    reportStatus.textContent = "Report generated";
+  });
+
+  copyReportBtn.addEventListener("click", async () => {
+    if (!lastReportText) {
+      showError("No report available yet. Run inference first.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(lastReportText);
+      copyReportBtn.textContent = "Copied";
+      reportStatus.textContent = "Report copied";
+      setTimeout(() => {
+        copyReportBtn.textContent = "Copy Report";
+      }, 1000);
+    } catch(e) {
+      showError("Could not copy report. Use Generate Report to download the text file.");
+    }
+  });
+
+  el("file").addEventListener("change", () => {
+    const f = el("file").files[0];
+
+    restoreStateNumbers();
+    resetStates();
+    resetMetrics();
+
+    if (f) {
+      markStateDone("stateAudio");
+      el("currentStateText").textContent = `Selected: ${f.name}`;
+    }
+  });
+
+  el("run").addEventListener("click", async () => {
+    clearError();
+    resetMetrics();
+    showStatePanel(true);
+    if (mfccShell) mfccShell.style.display = "none";
+    reportStatus.textContent = "Report will be ready after inference";
+    lastReportText = "";
+    downloadReportBtn.disabled = true;
+    copyReportBtn.disabled = true;
+
+    if (typeof Plotly === "undefined") {
+      showError("Plotly not loaded. Check your internet connection or CDN access.");
+      setRunState("bad", "Plotly missing");
+      return;
+    }
+
+    const f = el("file").files[0];
+
+    restoreStateNumbers();
+    resetStates();
+    showStatePanel(true);
+
+    if (!f) {
+      showError("Pick an audio file first.");
+      setRunState("bad", "No file selected");
+      markStateError("stateAudio");
+      reportStatus.textContent = "No report yet";
+      hideStatePanelSoon(1200);
+      return;
+    }
+
+    markStateDone("stateAudio");
+
+    const ok = await pingServer();
+
+    if (!ok) {
+      showError("Server not reachable. Start FastAPI using uvicorn and open http://127.0.0.1:8000/");
+      setRunState("bad", "Server unreachable");
+      reportStatus.textContent = "Report unavailable";
+      hideStatePanelSoon(1200);
+      return;
+    }
+
+    setRunState("running", "Uploading…");
+    setState("stateUpload", "Uploading audio sample");
+    setProgress(20);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+
+      startClientTimer();
+
+      await sleep(200);
+
+      markStateDone("stateUpload");
+
+      setState("statePreprocess", "Decoding audio and extracting MFCC features");
+      setProgress(40);
+
+      await sleep(200);
+
+      setState("stateEvaluate", "Running TCN–BiLSTM and masked pooling");
+      setProgress(65);
+
+      const BASE = window.location.origin;
+      const res = await fetch(`${BASE}/api/infer`, {
+        method: "POST",
+        body: fd
+      });
+
+      const clientElapsedMs = stopClientTimer();
+
+      const text = await res.text();
+
+      let data = null;
+
+      try {
+        data = JSON.parse(text);
+      } catch(e) {
+        data = null;
+      }
+
+      if (!res.ok) {
+        setRunState("bad", "Error");
+        setProgress(0);
+        markStateError("stateEvaluate");
+        metricsStatus.textContent = "Failed";
+        el("currentStateText").textContent = "Evaluation failed";
+        reportStatus.textContent = "Report unavailable";
+        hideStatePanelSoon(1200);
+        showError(data && data.error ? data.error : text);
+        return;
+      }
+
+      markStateDone("statePreprocess");
+      markStateDone("stateEvaluate");
+
+      setState("stateRender", "Rendering prediction, plots, metrics, and report");
+      setProgress(85);
+
+      updatePredictionUI(data);
+      updateMetrics(data);
+      renderPlots(data);
+
+      lastReportText = generateReportText(data, clientElapsedMs);
+      reportStatus.textContent = "Report ready";
+      downloadReportBtn.disabled = false;
+      copyReportBtn.disabled = false;
+
+      await sleep(200);
+
+      markStateDone("stateRender");
+      markStateDone("stateDone");
+
+      setRunState("ok", "Done");
+      setProgress(100);
+
+      el("currentStateText").textContent = "Evaluation completed successfully";
+      hideStatePanelSoon(1000);
+
+      setTimeout(() => setProgress(0), 1000);
+
+    } catch(e) {
+      stopClientTimer();
+      setRunState("bad", "Failed");
+      setProgress(0);
+      markStateError("stateEvaluate");
+      metricsStatus.textContent = "Failed";
+      el("currentStateText").textContent = "Evaluation failed";
+      reportStatus.textContent = "Report unavailable";
+      hideStatePanelSoon(1200);
+      showError(String(e));
+    }
+  });
+
+  pingServer();
+</script>
+</body>
+</html>

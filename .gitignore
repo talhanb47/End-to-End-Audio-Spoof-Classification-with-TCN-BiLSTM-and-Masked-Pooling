@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Optional: uncomment if your sample audio folder is large
+# samples/**/*.wav
+# samples/**/*.flac
+# samples/**/*.mp3
+
+# Optional: uncomment if your model files are too large for GitHub
+# models/*.pth
+# models/*.pt
+# models/*.ckpt
