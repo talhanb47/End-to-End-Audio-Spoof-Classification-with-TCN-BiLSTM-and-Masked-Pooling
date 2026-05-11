@@ -1,4 +1,4 @@
-# End-to-End Audio Spoof Classification Web App
+# End-to-End Audio Spoof Classification with TCN–BiLSTM and Masked Pooling
 
 A lightweight FastAPI web application for real/fake audio spoof classification using MFCC features, a TCN-BiLSTM temporal encoder, and masked mean pooling.
 
